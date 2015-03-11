@@ -1,0 +1,212 @@
+<!--
+    @license
+    Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+    This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+    The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+    The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+    Code distributed by Google as part of the polymer project is also
+    subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../core-ajax/core-ajax.html">
+<link rel="import" href="../core-icons/core-icons.html">
+<link rel="import" href="../paper-input/paper-input-decorator.html">
+<link rel="import" href="../x-audio/x-audio.html">
+<link rel="import" href="../paper-fab/paper-fab.html">
+<link rel="import" href="../core-icons/av-icons.html">
+
+
+<!--
+Element for recording audio
+
+##### Example
+
+    <x-memo-recorder reload="true" memoService="http://memo-service.com/memo">
+    </x-memo-recorder>
+
+@element x-memo-recorder
+@blurb Element for recording audio
+@status alpha
+@homepage https://github.com/tc-team/x-memo-recorder
+-->
+<polymer-element name="x-memo-recorder" attributes="reload memoService">
+    <template>
+        <link rel="stylesheet" href="css/style.css">
+
+        <core-ajax id="ajax"
+            url="{{memoService}}"
+            method="POST"
+            contentType="multipart/form-data"
+            handleAs="json"
+            withCredentials="true"
+            on-core-response="{{handleResponse}}">
+        </core-ajax>
+
+
+        <div id="error" hidden?="{{isHidden}}" horizontal center-justified layout>
+            <core-icon icon="error"></core-icon>  
+            <span>To save the memo you need to buy extra space</span>
+        </div>
+
+        <div horizontal layout>
+            <paper-input-decorator floatingLabel label="Name">
+                <input id="nameInput" is="core-input" type="text" value="{{memoName}}" autofocus></input>
+            </paper-input-decorator>
+            <span flex></span>
+            <span id="recTime">RECORDING: {{recTime}}</span>
+        </div>
+
+        <x-audio src="{{audioRecUrl}}" name="{{memoName}}" id="recAudio" disabled="true">
+        </x-audio>
+
+        <div id="recorderControls" horizontal center-justified layout>
+            <paper-fab mini icon="delete" id="deleteRecord" on-click="{{deleteRecord}}"></paper-fab>
+            <paper-fab icon="av:mic" id="startRecord" on-click="{{startRecord}}"></paper-fab>
+            <paper-fab mini icon="save" id="save" on-click="{{saveRecord}}"></paper-fab>
+        </div>
+
+    </template>
+    <script src="js/voice-recorder.js"></script>
+    <script>
+        Polymer({
+            /**
+            * The `memoService` attribute sets URL for memo service, which will save the recorded memo
+            *
+            * @attribute memoService
+            * @type string
+            * @default ''
+            */
+            memoService: '',
+
+            /**
+            * The `reload` attribute sets a flag that indicates that need to refresh the memo list.
+            *
+            * @attribute reload
+            * @type bool
+            * @default false
+            */
+            reload: false,
+
+            created: function () {
+                this.recTime = '00:00:00';
+                this.count = 0;    
+                this.recorder = null;
+                this.WAV = null;
+                this.recording =  false;
+                this.isHidden = true;
+            },
+            /**
+            * The `initRecorder` method will initializes the recorder before recording.
+            *
+            * @method initRecorder
+            * @param {} without parameters
+            * @return {} returns nothing
+            */
+            initRecorder: function (cnfg){
+                var worker_path = this.resolvePath('js/voice-recorder-worker.js');
+                var config = {
+                    bufferLen: 4096,
+                    numChannels: 1,
+                    worker: worker_path
+                }
+                this.recorder = new VoiceRecorder(config);
+            },
+            /**
+            * The `destroyRecorder` method will destroy the recorder after recording.
+            *
+            * @method destroyRecorder
+            * @param {} without parameters
+            * @return {} returns nothing
+            */
+            destroyRecorder: function () {
+                this.deleteRecord();
+                this.recorder.destroy();
+                delete this.recorder;
+            },
+            startRecord: function () {
+                var self = this;
+                if (!this.recording) {
+                    this.recorder.record();
+                    this.$.startRecord.setAttribute('class', 'recordActive');
+                    this.recording = true;
+                    self.timer = setInterval(function () {
+                        self.count++;
+                        self.recTime = self.toHHMMSS(self.count);
+                    }, 1000);
+                } else {
+                    this.recorder.stop();
+                    this.$.recAudio.setAttribute('disabled', false);
+                    this.recorder.exportWAV(function(blob) {
+                        self.WAV = blob;
+                        var url = window.URL.createObjectURL(self.WAV);
+                        self.audioRecUrl = url;
+                    });
+                    this.$.startRecord.removeAttribute('class');
+                    this.recording = false;
+                    clearInterval(this.timer);
+                }
+            },
+            deleteRecord: function () {
+                if (this.recording) {
+                    this.$.startRecord.removeAttribute('class');
+                    this.recorder.stop();
+                    this.recording = false;
+                }
+                clearInterval(this.timer);
+                this.recTime = '00:00:00';
+                this.count = 0;    
+                this.WAV = null;
+                if (this.recorder != null) {
+                    this.recorder.clear();
+                }
+                window.URL.revokeObjectURL(this.audioRecUrl);
+                this.$.recAudio.setAttribute('disabled', true);
+            },
+            saveRecord: function () {
+                if (this.recording) {
+                    this.$.startRecord.removeAttribute('class');
+                    this.recorder.stop();
+                    this.recording = false;
+                    clearInterval(this.timer);
+                }
+                var self = this;        
+                self.recorder.exportWAV(function(blob) {
+                    self.WAV = blob;
+                    var url = window.URL.createObjectURL(self.WAV);
+                    self.audioRecUrl = url;
+                    self.recorder.clear();
+                    var formData = new FormData();
+                    var id = Date.now();
+                    formData.append('id', id);
+                    var today = new Date();
+                    var time = today.toLocaleString()
+                    var name = self.memoName || time;
+                    formData.append('name', name);
+                    formData.append(id, self.WAV);
+                    self.$.ajax.body = formData;
+                    self.$.ajax.go();
+                });
+            },
+            handleResponse: function (event, res) {
+                if (res.response === 'success') {
+                    this.reload = true;
+                } else if (res.response === 'space-error') {
+                    this.isHidden = false;
+                };
+            },
+            toHHMMSS: function (value) {
+                var sec_num = parseInt(value, 10);
+                var hours   = Math.floor(sec_num / 3600);
+                var minutes = Math.floor((sec_num - (hours * 3600)) / 60);
+                var seconds = sec_num - (hours * 3600) - (minutes * 60);
+
+                if (hours   < 10) {hours   = "0"+hours;}
+                if (minutes < 10) {minutes = "0"+minutes;}
+                if (seconds < 10) {seconds = "0"+seconds;}
+                var time    = hours+':'+minutes+':'+seconds;
+                return time;
+            }
+            
+        });
+    </script>
+</polymer-element>
