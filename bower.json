@@ -1,0 +1,7 @@
+{
+  "name": "x-memo-recorder#gh-pages",
+  "private": true,
+  "dependencies": {
+    "x-memo-recorder": "tc-team/x-memo-recorder#master"
+  }
+}

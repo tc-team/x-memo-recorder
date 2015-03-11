@@ -1,0 +1,40 @@
+{
+  "name": "x-memo-recorder",
+  "authors": [
+    "TC"
+  ],
+  "description": "Element providing solution for recording audio",
+  "keywords": [
+    "web-component",
+    "web-components",
+    "polymer",
+    "memo-recorder"
+  ],
+  "main": "x-memo-recorder.html",
+  "license": "MIT",
+  "homepage": "https://github.com/tc-team/x-memo-recorder/",
+  "ignore": [
+    "/.*",
+    "/tests/"
+  ],
+  "dependencies": {
+    "polymer": "Polymer/polymer#^0.5.4",
+    "paper-fab": "Polymer/paper-fab#~0.5.5",
+    "paper-input": "Polymer/paper-input#~0.5.5",
+    "x-audio": "git@github.com:tc-team/x-audio.git#~0.0.2",
+    "core-ajax": "Polymer/core-ajax#~0.5.5"
+  },
+  "devDependencies": {
+    "web-component-tester": "*"
+  },
+  "_release": "e8deccd3c2",
+  "_resolution": {
+    "type": "branch",
+    "branch": "master",
+    "commit": "e8deccd3c2ec9eef4abf836f01ff2cfe77a82ed9"
+  },
+  "_source": "git://github.com/tc-team/x-memo-recorder.git",
+  "_target": "master",
+  "_originalSource": "tc-team/x-memo-recorder",
+  "_direct": true
+}
